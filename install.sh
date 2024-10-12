@@ -1,4 +1,12 @@
-#!/bin/bash
+#!/usr/bin/env bash
+
+#Variable - get current script path
+ABS_PATH=$(dirname $0)
+
+#Source the functions script
+source <(${ABS_PATH}/install.func)
+
+preinstall_check
 
 # Install script for Proxmox VM Autoscale project
 # Repository: https://github.com/fabriziosalmi/proxmox-vm-autoscale
@@ -10,42 +18,37 @@ SERVICE_FILE="vm_autoscale.service"
 CONFIG_FILE="/usr/local/bin/vm_autoscale/config.yaml"
 BACKUP_FILE="/usr/local/bin/vm_autoscale/config.yaml.backup"
 
-# Ensure the script is run as root
-if [ "$EUID" -ne 0 ]; then
-    echo "Please run as root"
-    exit 1
-fi
 
 # Backup existing config.yaml if it exists
 if [ -f "$CONFIG_FILE" ]; then
-    echo "Backing up existing config.yaml to config.yaml.backup..."
+    msg_info "Backing up existing config.yaml to config.yaml.backup..."
     cp "$CONFIG_FILE" "$BACKUP_FILE"
 fi
 
 # Install necessary dependencies
-echo "Installing necessary dependencies..."
+msg_info "Installing necessary dependencies..."
 apt-get update
 apt-get install -y python3 curl bash git python3-paramiko python3-yaml python3-requests python3-cryptography
 
 # Clone the repository
-echo "Cloning the repository..."
+msg_info "Cloning the repository..."
 if [ -d "$INSTALL_DIR" ]; then
-    echo "Removing existing installation directory..."
+    msg_info "Removing existing installation directory..."
     rm -rf "$INSTALL_DIR"
 fi
 
 git clone "$REPO_URL" "$INSTALL_DIR"
 
 # Install Python dependencies
-echo "Installing Python dependencies..."
+msg_info "Installing Python dependencies..."
 pip3 install -r "$INSTALL_DIR/requirements.txt"
 
 # Set permissions
-echo "Setting permissions..."
+msg_info "Setting permissions..."
 chmod -R 755 "$INSTALL_DIR"
 
 # Create the systemd service file
-echo "Creating the systemd service file..."
+msg_info "Creating the systemd service file..."
 cat <<EOF > /etc/systemd/system/$SERVICE_FILE
 [Unit]
 Description=Proxmox VM Autoscale Service
@@ -63,12 +66,12 @@ WantedBy=multi-user.target
 EOF
 
 # Reload systemd, enable the service, and ensure it's not started
-echo "Reloading systemd, enabling the service..."
+msg_info "Reloading systemd, enabling the service..."
 systemctl daemon-reload
 systemctl enable $SERVICE_FILE
 
 # Post-installation instructions
-echo "Installation complete. The service is enabled but not started."
-echo "To start the service, use: sudo systemctl start $SERVICE_FILE"
-echo "Logs can be monitored using: journalctl -u $SERVICE_FILE -f"
+msg_ok "Installation complete. The service is enabled but not started."
+msg_info "To start the service, use: sudo systemctl start $SERVICE_FILE"
+msg_info "Logs can be monitored using: journalctl -u $SERVICE_FILE -f"
 
